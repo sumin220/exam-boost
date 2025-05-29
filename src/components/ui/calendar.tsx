@@ -71,8 +71,8 @@ function Calendar({
                 ...classNames,
             }}
             components={{
-                IconLeft: () => <ChevronLeft className="h-4 w-4" />, // 아이콘은 그대로 사용
-                IconRight: () => <ChevronRight className="h-4 w-4" />, // 아이콘은 그대로 사용
+                // IconLeft: () => <ChevronLeft className="h-4 w-4" />, // 아이콘은 그대로 사용
+                // IconRight: () => <ChevronRight className="h-4 w-4" />, // 아이콘은 그대로 사용
             }}
             // react-day-picker v8+ 에서는 showWeekNumber, formatters.formatWeekdayName 등으로 요일 표시를 제어할 수 있으나,
             // shadcn-ui의 Calendar는 classNames를 통한 CSS 제어가 더 일반적입니다.
