@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -12,66 +11,42 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 import Link from "next/link"
 import { useLocalStorage } from "@/hooks/use-local-storage"
 import type { StudyPlan } from "@/types/study-plan"
-import { BookOpen, Calendar, Clock, Play, Target, Edit, Check, X } from "lucide-react"
+import { BookOpen, Clock, Play, Target, ArrowRight, BarChart3 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+
+const ensureDate = (date: any): Date => {
+  if (date instanceof Date) return date
+  return new Date(date)
+}
 
 export default function Home() {
   const [studyPlan, setStudyPlan] = useLocalStorage<StudyPlan>("studyPlan", {
     examName: "",
     studyStartDate: new Date(),
-    studyEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30일 후
+    studyEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     dailyStudyHours: 4,
   })
 
   const [formData, setFormData] = useState({
     examName: studyPlan.examName,
-    studyStartDate: studyPlan.studyStartDate,
-    studyEndDate: studyPlan.studyEndDate,
+    studyStartDate: ensureDate(studyPlan.studyStartDate),
+    studyEndDate: ensureDate(studyPlan.studyEndDate),
     dailyStudyHours: studyPlan.dailyStudyHours,
   })
 
-  const [isEditing, setIsEditing] = useState({
-    examName: false,
-    studyStartDate: false,
-    studyEndDate: false,
-    dailyStudyHours: false,
-  })
+  const [savedResult, setSavedResult] = useState<any>(null)
 
-  const [editData, setEditData] = useState(studyPlan)
-
-  const handleSubmit = useCallback(
-      (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!formData.examName.trim()) {
-          alert("시험 이름을 입력해주세요.")
-          return
-        }
-        if (!formData.studyStartDate) {
-          alert("공부 시작일을 선택해주세요.")
-          return
-        }
-        if (!formData.studyEndDate) {
-          alert("공부 종료일을 선택해주세요.")
-          return
-        }
-        if (formData.studyEndDate <= formData.studyStartDate) {
-          alert("공부 종료일은 시작일보다 늦어야 합니다.")
-          return
-        }
-        if (formData.dailyStudyHours <= 0) {
-          alert("하루 공부 시간을 올바르게 입력해주세요.")
-          return
-        }
-
-        setStudyPlan(formData)
-      },
-      [formData, setStudyPlan],
-  )
+  useEffect(() => {
+    const saved = localStorage.getItem("savedSimulation")
+    if (saved) {
+      setSavedResult(JSON.parse(saved))
+    }
+  }, [])
 
   const handleStartDateChange = useCallback((date: Date | undefined) => {
     if (date) {
       setFormData((prev) => {
         const newFormData = { ...prev, studyStartDate: date }
-        // 시작일이 종료일보다 늦으면 종료일을 시작일 + 7일로 설정
         if (date >= prev.studyEndDate) {
           const newEndDate = new Date(date.getTime() + 7 * 24 * 60 * 60 * 1000)
           newFormData.studyEndDate = newEndDate
@@ -95,45 +70,6 @@ export default function Home() {
     setFormData((prev) => ({ ...prev, dailyStudyHours: Number(e.target.value) }))
   }, [])
 
-  // 인라인 편집 관련 함수들
-  const startEdit = (field: keyof typeof isEditing) => {
-    setIsEditing({ ...isEditing, [field]: true })
-    setEditData(studyPlan)
-  }
-
-  const cancelEdit = (field: keyof typeof isEditing) => {
-    setIsEditing({ ...isEditing, [field]: false })
-    setEditData(studyPlan)
-  }
-
-  const saveEdit = (field: keyof typeof isEditing) => {
-    if (field === "studyEndDate" && editData.studyEndDate <= editData.studyStartDate) {
-      alert("공부 종료일은 시작일보다 늦어야 합니다.")
-      return
-    }
-    if (field === "studyStartDate" && editData.studyStartDate >= editData.studyEndDate) {
-      alert("공부 시작일은 종료일보다 빨라야 합니다.")
-      return
-    }
-    if (field === "dailyStudyHours" && editData.dailyStudyHours <= 0) {
-      alert("하루 공부 시간은 0보다 커야 합니다.")
-      return
-    }
-    if (field === "examName" && !editData.examName.trim()) {
-      alert("시험 이름을 입력해주세요.")
-      return
-    }
-
-    setStudyPlan(editData)
-    setIsEditing({ ...isEditing, [field]: false })
-  }
-
-  const handleEditDateChange = (field: "studyStartDate" | "studyEndDate", date: Date | undefined) => {
-    if (date) {
-      setEditData({ ...editData, [field]: date })
-    }
-  }
-
   const calculatedData = useMemo(() => {
     const diffTime = formData.studyEndDate.getTime() - formData.studyStartDate.getTime()
     const studyDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
@@ -141,11 +77,31 @@ export default function Home() {
     return { studyDays, totalStudyHours }
   }, [formData.studyStartDate, formData.studyEndDate, formData.dailyStudyHours])
 
+  const handleNext = () => {
+    if (!formData.examName.trim()) {
+      alert("시험 이름을 입력해주세요.")
+      return
+    }
+    if (formData.studyEndDate <= formData.studyStartDate) {
+      alert("공부 종료일은 시작일보다 늦어야 합니다.")
+      return
+    }
+    if (formData.dailyStudyHours <= 0) {
+      alert("하루 공부 시간을 올바르게 입력해주세요.")
+      return
+    }
+
+    setStudyPlan(formData)
+  }
+
+  const isFormValid =
+      formData.examName.trim() && formData.studyEndDate > formData.studyStartDate && formData.dailyStudyHours > 0
+
   return (
       <div className="container mx-auto px-4 py-12">
         {/* 헤더 영역 */}
         <div className="flex justify-between items-center mb-8">
-          <div></div> {/* 왼쪽 공간 */}
+          <div></div>
           <div className="text-center">
             <div className="mx-auto mb-4 w-16 h-16 bg-primary rounded-full flex items-center justify-center">
               <BookOpen className="w-8 h-8 text-primary-foreground" />
@@ -156,233 +112,179 @@ export default function Home() {
           <ThemeToggle />
         </div>
 
-        <div className="max-w-md mx-auto">
+        <div className="max-w-lg mx-auto">
+          {/* 메인 설정 카드 */}
           <Card className="shadow-lg">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold flex items-center justify-center gap-2">
                 <Target className="w-6 h-6" />
                 학습 계획 설정
               </CardTitle>
+              <p className="text-sm text-muted-foreground">시험 정보를 입력하고 최적의 학습 계획을 세워보세요</p>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="examName" className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  시험 이름
+                </Label>
+                <Input
+                    id="examName"
+                    value={formData.examName}
+                    onChange={handleExamNameChange}
+                    placeholder="예: 정보처리기사 필기"
+                    className="text-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="examName" className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    시험 이름
+                  <Label className="flex items-center gap-2">
+                    <Play className="w-4 h-4" />
+                    공부 시작일
                   </Label>
-                  <Input
-                      id="examName"
-                      value={formData.examName}
-                      onChange={handleExamNameChange}
-                      placeholder="예: 정보처리기사 필기"
-                      required
+                  <DatePicker
+                      date={formData.studyStartDate}
+                      onDateChange={handleStartDateChange}
+                      placeholder="공부 시작일을 선택하세요"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="studyStartDate" className="flex items-center gap-2">
-                      <Play className="w-4 h-4" />
-                      공부 시작일
-                    </Label>
-                    <DatePicker
-                        date={formData.studyStartDate}
-                        onDateChange={handleStartDateChange}
-                        placeholder="공부 시작일을 선택하세요"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="studyEndDate" className="flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      공부 종료일
-                    </Label>
-                    <DatePicker
-                        date={formData.studyEndDate}
-                        onDateChange={handleEndDateChange}
-                        placeholder="공부 종료일을 선택하세요"
-                    />
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="studyHours" className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    하루 평균 공부 시간 (시간)
+                  <Label className="flex items-center gap-2">
+                    <Target className="w-4 h-4" />
+                    시험일 (공부 종료일)
                   </Label>
-                  <Input
-                      id="studyHours"
-                      type="number"
-                      min="0.5"
-                      step="0.5"
-                      value={formData.dailyStudyHours}
-                      onChange={handleStudyHoursChange}
-                      placeholder="예: 4.5"
-                      required
+                  <DatePicker
+                      date={formData.studyEndDate}
+                      onDateChange={handleEndDateChange}
+                      placeholder="시험일을 선택하세요"
                   />
                 </div>
+              </div>
 
-                {/* 계산된 정보 표시 */}
-                <div className="p-4 bg-muted rounded-lg space-y-2">
-                  <h4 className="font-medium text-sm">📊 계획 요약</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">총 공부 기간:</span>
-                      <div className="font-medium">{calculatedData.studyDays}일</div>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">총 공부 시간:</span>
-                      <div className="font-medium">{calculatedData.totalStudyHours}시간</div>
-                    </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  하루 평균 공부 시간 (시간)
+                </Label>
+                <Input
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={formData.dailyStudyHours}
+                    onChange={handleStudyHoursChange}
+                    placeholder="예: 4.5"
+                    className="text-lg"
+                />
+              </div>
+
+              {/* 계산된 정보 표시 */}
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  계획 요약
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="p-3 bg-white rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{calculatedData.studyDays}</div>
+                    <div className="text-sm text-gray-600">총 공부 기간 (일)</div>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{calculatedData.totalStudyHours}</div>
+                    <div className="text-sm text-gray-600">총 공부 시간 (시간)</div>
                   </div>
                 </div>
+              </div>
 
-                <div className="flex gap-3">
-                  <Button type="submit" className="flex-1">
-                    계획 저장
+              {/* 다음 단계 버튼 */}
+              <div className="space-y-3">
+                <Link href="/subjects" onClick={handleNext}>
+                  <Button size="lg" className="w-full text-lg py-6" disabled={!isFormValid}>
+                    과목 설정하러 가기
+                    <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
-                  <Link href="/subjects" className="flex-1">
-                    <Button type="button" variant="outline" className="w-full">
-                      과목 설정하기
-                    </Button>
-                  </Link>
-                </div>
-              </form>
+                </Link>
+                <p className="text-xs text-center text-muted-foreground">
+                  다음 단계에서 과목별 상세 정보를 입력하고 시뮬레이션을 실행할 수 있습니다
+                </p>
+              </div>
             </CardContent>
           </Card>
 
-          {/* 현재 설정된 정보 표시 - 인라인 편집 가능 */}
-          {studyPlan.examName && (
+          {/* 저장된 시뮬레이션 결과 표시 */}
+          {savedResult && (
               <Card className="mt-6">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    현재 설정된 학습 계획
-                    <span className="text-xs text-muted-foreground">(클릭해서 수정)</span>
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    최근 시뮬레이션 결과
+                    <Badge variant="outline" className="text-xs">
+                      {new Date(savedResult.timestamp).toLocaleDateString("ko-KR")}
+                    </Badge>
                   </h3>
-                  <div className="space-y-3 text-sm">
-                    {/* 시험명 편집 */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">시험명:</span>
-                      <div className="flex items-center gap-2">
-                        {isEditing.examName ? (
-                            <>
-                              <Input
-                                  value={editData.examName}
-                                  onChange={(e) => setEditData({ ...editData, examName: e.target.value })}
-                                  className="h-8 text-sm"
-                                  autoFocus
-                              />
-                              <Button size="sm" variant="ghost" onClick={() => saveEdit("examName")}>
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => cancelEdit("examName")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </>
-                        ) : (
-                            <>
-                              <span className="font-medium">{studyPlan.examName}</span>
-                              <Button size="sm" variant="ghost" onClick={() => startEdit("examName")}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* 시작일 편집 */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">시작일:</span>
-                      <div className="flex items-center gap-2">
-                        {isEditing.studyStartDate ? (
-                            <>
-                              <DatePicker
-                                  date={editData.studyStartDate}
-                                  onDateChange={(date) => handleEditDateChange("studyStartDate", date)}
-                                  className="h-8 text-sm"
-                              />
-                              <Button size="sm" variant="ghost" onClick={() => saveEdit("studyStartDate")}>
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => cancelEdit("studyStartDate")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </>
-                        ) : (
-                            <>
-                              <span className="font-medium">{studyPlan.studyStartDate.toLocaleDateString("ko-KR")}</span>
-                              <Button size="sm" variant="ghost" onClick={() => startEdit("studyStartDate")}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </>
-                        )}
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg border border-green-200 mb-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600 mb-1">
+                        {savedResult.totalAchievementRate?.toFixed(1)}%
                       </div>
+                      <div className="text-sm text-gray-600">이 계획으로 공부할 시 평균 목표 달성률</div>
                     </div>
+                  </div>
 
-                    {/* 종료일 편집 */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">종료일:</span>
-                      <div className="flex items-center gap-2">
-                        {isEditing.studyEndDate ? (
-                            <>
-                              <DatePicker
-                                  date={editData.studyEndDate}
-                                  onDateChange={(date) => handleEditDateChange("studyEndDate", date)}
-                                  className="h-8 text-sm"
-                              />
-                              <Button size="sm" variant="ghost" onClick={() => saveEdit("studyEndDate")}>
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => cancelEdit("studyEndDate")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </>
-                        ) : (
-                            <>
-                              <span className="font-medium">{studyPlan.studyEndDate.toLocaleDateString("ko-KR")}</span>
-                              <Button size="sm" variant="ghost" onClick={() => startEdit("studyEndDate")}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </>
-                        )}
-                      </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-sm font-medium text-green-600">{savedResult.bestSubject}</div>
+                      <div className="text-xs text-muted-foreground">최고 달성 예상 과목</div>
                     </div>
+                    <div className="text-center p-3 bg-muted rounded-lg">
+                      <div className="text-sm font-medium text-red-600">{savedResult.worstSubject}</div>
+                      <div className="text-xs text-muted-foreground">개선 필요 과목</div>
+                    </div>
+                  </div>
 
-                    {/* 하루 공부시간 편집 */}
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">하루 공부시간:</span>
-                      <div className="flex items-center gap-2">
-                        {isEditing.dailyStudyHours ? (
-                            <>
-                              <Input
-                                  type="number"
-                                  min="0.5"
-                                  step="0.5"
-                                  value={editData.dailyStudyHours}
-                                  onChange={(e) => setEditData({ ...editData, dailyStudyHours: Number(e.target.value) })}
-                                  className="h-8 text-sm w-20"
-                                  autoFocus
+                  <div className="space-y-2">
+                    {savedResult.results?.slice(0, 3).map((result: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
+                          <span className="font-medium">{result.subjectName}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${Math.min(result.achievementRate, 100)}%`,
+                                    backgroundColor: result.color,
+                                  }}
                               />
-                              <span className="text-xs">시간</span>
-                              <Button size="sm" variant="ghost" onClick={() => saveEdit("dailyStudyHours")}>
-                                <Check className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => cancelEdit("dailyStudyHours")}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </>
-                        ) : (
-                            <>
-                              <span className="font-medium">{studyPlan.dailyStudyHours}시간</span>
-                              <Button size="sm" variant="ghost" onClick={() => startEdit("dailyStudyHours")}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                            </>
-                        )}
-                      </div>
-                    </div>
+                            </div>
+                            <span className="text-xs text-muted-foreground w-12">{result.achievementRate.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                    ))}
+                    {savedResult.results?.length > 3 && (
+                        <div className="text-center text-xs text-muted-foreground pt-2">
+                          +{savedResult.results.length - 3}개 과목 더
+                        </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 mt-4">
+                    <Link href="/simulation" className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        상세 결과 보기
+                      </Button>
+                    </Link>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          localStorage.removeItem("savedSimulation")
+                          setSavedResult(null)
+                        }}
+                    >
+                      결과 삭제
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
