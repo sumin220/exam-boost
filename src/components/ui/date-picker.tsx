@@ -26,10 +26,14 @@ export function DatePicker({
                            }: DatePickerProps) {
     const [open, setOpen] = React.useState(false)
 
-    const handleSelect = (selectedDate: Date | undefined) => {
-        onDateChange?.(selectedDate)
-        setOpen(false)
-    }
+    const handleSelect = React.useCallback(
+        (selectedDate: Date | undefined) => {
+            onDateChange?.(selectedDate);
+            setOpen(false);
+        },
+        [onDateChange],
+    );
+
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

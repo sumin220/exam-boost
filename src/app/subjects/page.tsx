@@ -135,9 +135,9 @@ export default function SubjectsPage() {
                   </div>
                   <h3 className="text-lg font-semibold mb-2">과목을 추가해주세요</h3>
                   <p className="text-muted-foreground mb-4">시뮬레이션을 위해 최소 1개 이상의 과목이 필요합니다.</p>
-                  <Button onClick={addNewSubject} className="flex items-center gap-2">
-                    <PlusCircle className="h-4 w-4" />첫 번째 과목 추가하기
-                  </Button>
+                  {/*<Button onClick={addNewSubject} className="flex items-center gap-2">*/}
+                  {/*  <PlusCircle className="h-4 w-4" />첫 번째 과목 추가하기*/}
+                  {/*</Button>*/}
                 </CardContent>
               </Card>
           ) : (
