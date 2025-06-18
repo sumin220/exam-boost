@@ -48,14 +48,6 @@ export default function Home() {
     dailyStudyHours: 4,
   });
 
-  // formData 초기화 시 localStorage에서 불러온 studyPlan의 날짜들을 Date 객체로 확실히 변환
-  const [formData, setFormData] = useState<StudyPlan>({
-    examName: studyPlan.examName,
-    studyStartDate: ensureDate(studyPlan.studyStartDate),
-    studyEndDate: ensureDate(studyPlan.studyEndDate),
-    dailyStudyHours: studyPlan.dailyStudyHours,
-  });
-
   const [savedResult, setSavedResult] = useState<SavedSimulationResult | null>(null);
 
   useEffect(() => {
@@ -77,7 +69,7 @@ export default function Home() {
 
   const handleStartDateChange = useCallback((date: Date | undefined) => {
     if (date) {
-      setFormData((prev) => {
+      setStudyPlan((prev) => {
         const newStartDate = ensureDate(date);
         const currentEndDate = ensureDate(prev.studyEndDate);
         let newEndDate = currentEndDate;
@@ -88,26 +80,26 @@ export default function Home() {
         return { ...prev, studyStartDate: newStartDate, studyEndDate: newEndDate };
       });
     }
-  }, []);
+  }, [setStudyPlan]);
 
   const handleEndDateChange = useCallback((date: Date | undefined) => {
     if (date) {
-      setFormData((prev) => ({ ...prev, studyEndDate: ensureDate(date) }));
+      setStudyPlan((prev) => ({ ...prev, studyEndDate: ensureDate(date) }));
     }
-  }, []);
+  }, [setStudyPlan]);
 
   const handleExamNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, examName: e.target.value }));
-  }, []);
+    setStudyPlan((prev) => ({ ...prev, examName: e.target.value }));
+  }, [setStudyPlan]);
 
   const handleStudyHoursChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const hours = Number(e.target.value);
-    setFormData((prev) => ({ ...prev, dailyStudyHours: hours >= 0 ? hours : 0 }));
-  }, []);
+    setStudyPlan((prev) => ({ ...prev, dailyStudyHours: hours >= 0 ? hours : 0 }));
+  }, [setStudyPlan]);
 
   const calculatedData = useMemo(() => {
-    const startDate = ensureDate(formData.studyStartDate);
-    const endDate = ensureDate(formData.studyEndDate);
+    const startDate = ensureDate(studyPlan.studyStartDate);
+    const endDate = ensureDate(studyPlan.studyEndDate);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return { studyDays: 0, totalStudyHours: 0 };
@@ -119,21 +111,21 @@ export default function Home() {
 
     const diffTime = endDate.getTime() - startDate.getTime();
     const studyDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const totalStudyHours = studyDays * formData.dailyStudyHours;
+    const totalStudyHours = studyDays * studyPlan.dailyStudyHours;
     return { studyDays: studyDays >= 0 ? studyDays : 0, totalStudyHours: totalStudyHours >= 0 ? totalStudyHours : 0 };
-  }, [formData.studyStartDate, formData.studyEndDate, formData.dailyStudyHours]);
+  }, [studyPlan.studyStartDate, studyPlan.studyEndDate, studyPlan.dailyStudyHours]);
 
   const isFormValid = useMemo(() => {
-    const startDate = ensureDate(formData.studyStartDate);
-    const endDate = ensureDate(formData.studyEndDate);
+    const startDate = ensureDate(studyPlan.studyStartDate);
+    const endDate = ensureDate(studyPlan.studyEndDate);
     return (
-        formData.examName.trim() !== "" &&
+        studyPlan.examName.trim() !== "" &&
         !isNaN(startDate.getTime()) &&
         !isNaN(endDate.getTime()) &&
         endDate > startDate &&
-        formData.dailyStudyHours > 0
+        studyPlan.dailyStudyHours > 0
     );
-  }, [formData]);
+  }, [studyPlan]);
 
 
   const handleNext = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -142,7 +134,6 @@ export default function Home() {
       alert("입력값을 확인해주세요.\n- 시험 이름은 필수입니다.\n- 공부 종료일은 시작일보다 늦어야 합니다.\n- 하루 공부 시간은 0보다 커야 합니다.");
       return;
     }
-    setStudyPlan(formData); // 유효할 때만 localStorage에 저장
   };
 
 
@@ -179,7 +170,7 @@ export default function Home() {
                 </Label>
                 <Input
                     id="examName"
-                    value={formData.examName}
+                    value={studyPlan.examName}
                     onChange={handleExamNameChange}
                     placeholder="예: 정보처리기사 필기"
                     className="text-base sm:text-lg"
@@ -193,7 +184,7 @@ export default function Home() {
                     공부 시작일
                   </Label>
                   <DatePicker
-                      date={ensureDate(formData.studyStartDate)}
+                      date={ensureDate(studyPlan.studyStartDate)}
                       onDateChange={handleStartDateChange}
                       placeholder="시작일을 선택하세요"
                   />
@@ -204,7 +195,7 @@ export default function Home() {
                     시험일 (공부 종료일)
                   </Label>
                   <DatePicker
-                      date={ensureDate(formData.studyEndDate)}
+                      date={ensureDate(studyPlan.studyEndDate)}
                       onDateChange={handleEndDateChange}
                       placeholder="시험일을 선택하세요"
                   />
@@ -221,7 +212,7 @@ export default function Home() {
                     type="number"
                     min="0.5"
                     step="0.5"
-                    value={formData.dailyStudyHours}
+                    value={studyPlan.dailyStudyHours}
                     onChange={handleStudyHoursChange}
                     placeholder="예: 4.5"
                     className="text-base sm:text-lg"
